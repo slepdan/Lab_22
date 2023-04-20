@@ -65,4 +65,9 @@ public class MyServer {
             }
         }
     }
+    public synchronized void broadcastMsgToChangeName(String nameFrom, String nameTo) {
+        for (ClientHandler o : clients){
+                o.sendMsg(nameFrom +" cменил ник на: " + nameTo);
+        }
+    }
 }

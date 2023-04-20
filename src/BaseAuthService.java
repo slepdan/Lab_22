@@ -1,22 +1,10 @@
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class BaseAuthService implements AuthService {
     final static String connectionUrl = "jdbc:sqlite:identifier.sqlite";
     private static Connection connection;
     private static Statement stmt;
-    private class Entry {
-        private String login;
-        private String pass;
-        private String nick;
-        public Entry(String login, String pass, String nick) {
-            this.login = login;
-            this.pass = pass;
-            this.nick = nick;
-        }
-    }
-    private List<Entry> entries;
+
     @Override
     public void start() {
         System.out.println("Сервис аутентификации запущен");
@@ -24,12 +12,6 @@ public class BaseAuthService implements AuthService {
     @Override
     public void stop(){
         System.out.println("Сервис аутентификации остановлен");
-    }
-    public BaseAuthService() {
-        entries = new ArrayList<>();
-        entries.add(new Entry("login1", "pass1","nick1"));
-        entries.add(new Entry("login2", "pass2","nick2"));
-        entries.add(new Entry("login3", "pass3","nick3"));
     }
     public void connect() throws SQLException, ClassNotFoundException{
         Class.forName("org.sqlite.JDBC");
@@ -69,21 +51,19 @@ public class BaseAuthService implements AuthService {
         closeConnection();
         return nickReturn;
     }
+
     @Override
-    public String setNewUsers(String login, String pass, String nick) throws SQLException, ClassNotFoundException {
+    public String setNewUsers(int login, int pass, int nick) throws SQLException, ClassNotFoundException {
         connect();
-        int hash = pass.hashCode();
-        String sql = String.format("INSERT INTO main (login, password, nickname) VALUES ('%s', '%d', '%s')", login, hash, nick);
-
-        try {
-            boolean rs = stmt.execute(sql);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return sql;
+        String query = "INSERT INTO peoples (login, pass, nick) " + "VALUES (?,?,?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        preparedStatement.setInt(1,login);
+        preparedStatement.setInt(2,pass);
+        preparedStatement.setInt(3,nick);
+        preparedStatement.executeUpdate();
+        return query;
     }
-
+    @Override
      public int getIdByNick(String nick) {
         String idNick = String.format("SELECT id FROM main where nickname = '%s'", nick);
         try {
@@ -98,7 +78,7 @@ public class BaseAuthService implements AuthService {
         }
         return 0;
     }
-
+    @Override
     public boolean addBlackListByNickAndNickName(int _nickId, int _nicknameId) {
         String addBlackListUser = String.format("INSERT INTO blacklist (id_user,id_blacklist_user) VALUES ('%s', '%s');", _nickId, _nicknameId);
 
@@ -110,7 +90,7 @@ public class BaseAuthService implements AuthService {
         }
         return false;
     }
-
+    @Override
     public int getBlackListUserById(int _nickId) {
         String idBlackListUser = String.format("SELECT id_blacklist_user FROM blacklist where id_user = '%s'", _nickId);
 

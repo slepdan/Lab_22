@@ -15,11 +15,6 @@ public class ClientHandler {
         return name;
     }
 
-    boolean checkBlackList(String _blacklist_nick) throws SQLException {
-        int nickId = myServer.getAuthService().getIdByNick(_blacklist_nick);
-        int blacklistId = myServer.getAuthService().getBlackListUserById(nickId);
-        return blacklistId > 0;
-    }
 
     public ClientHandler(MyServer myServer, Socket socket) {
         try {
@@ -54,7 +49,7 @@ public class ClientHandler {
             if (str.startsWith("/auth")) {
 
                 String[] parts = str.split("\\s");
-                String nick = myServer.getAuthService().getNickByLoginPassDB(parts[1], parts[2]);
+                String nick = myServer.getAuthService().getNickByLoginPass(parts[1], parts[2]);
                 if (nick != null) {
                     if (!myServer.isNickBusy(nick)) {
                         name = nick;
@@ -78,16 +73,6 @@ public class ClientHandler {
             if (strFromClient.equals("/end")) {
                 closeConnection();
             }
-            if (strFromClient.startsWith("/adduser ")) {
-                myServer.getAuthService().setNewUsers(1,2,3);
-            }
-            if (strFromClient.startsWith("/blacklist ")) {
-                String[] tokens = strFromClient.split(" ");
-                int nickId = myServer.getAuthService().getIdByNick(name);
-                int nicknameId = myServer.getAuthService().getIdByNick(tokens[1]);
-                myServer.getAuthService().addBlackListByNickAndNickName(nickId, nicknameId);
-                sendMsg("Вы добавили пользователя " + tokens[1] + " в черный список");
-            }
             if (strFromClient.startsWith("/changename ")){
                 String newNickname = strFromClient.split("\\s", 2)[1];
                 myServer.broadcastMsgToChangeName(name,newNickname);
@@ -95,6 +80,31 @@ public class ClientHandler {
             }
             else {
                 myServer.broadcastMsg(name + ": " + strFromClient);
+            }
+            if (name.equals("admin")) {
+                if (strFromClient.startsWith("/adduser ")) {
+                    String[] arr = strFromClient.split(" ");
+                    String login = arr[1];
+                    String pass = arr[2];
+                    myServer.getAuthService().createUser(login, pass);
+                    myServer.broadcastIndividual(name, "user " + login + " added", "Server");
+                    continue;
+                }
+                if (strFromClient.startsWith("/deluser ")) {
+                    String[] arr = strFromClient.split(" ");
+                    String login = arr[1];
+                    boolean isInDB = myServer.getAuthService().findUserByNick(login);
+                    boolean isOnline = myServer.isNickBusy(login);
+                    if (isInDB) {
+                        myServer.getAuthService().deleteUserByNick(login);
+                        myServer.broadcastIndividual(name, "user " + login + " deleted", "Server");
+                        if (isOnline) {
+                            myServer.kickUser(login);
+                        }
+                    } else {
+                        myServer.broadcastIndividual(name, "user " + login + " not found", "Server");
+                    }
+                }
             }
             if (strFromClient.startsWith("/w")) {
                 String[] parts = strFromClient.split("\\s");
@@ -105,6 +115,7 @@ public class ClientHandler {
                     myServer.broadcastMsg(name + ": " + strFromClient);
                 }
             }
+
         }
     }
     public void sendMsg(String msg) {
@@ -114,7 +125,25 @@ public class ClientHandler {
             e.printStackTrace();
         }
     }
-
+    public void closeKick() {
+        myServer.broadcastMsg(name + " был кикнут из чата");
+        myServer.unsubscribe(this);
+        try {
+            in.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     public void closeConnection() {
         myServer.unsubscribe(this);
         myServer.broadcastMsg(name + " вышел из чата");

@@ -70,4 +70,23 @@ public class MyServer {
                 o.sendMsg(nameFrom +" cменил ник на: " + nameTo);
         }
     }
+    public synchronized boolean kickUser (String nick) {
+        for (ClientHandler o : clients) {
+            if (o.getName().equals(nick)) {
+                o.closeKick();
+                return true;
+            }
+        }
+        return false;
+    }
+    public synchronized void broadcastIndividual(String name, String msg, String from) {
+        for (ClientHandler o : clients) {
+            if (o.getName().equals(name)) {
+                o.sendMsg("/w from " + from + ": " + msg);
+            }
+            if (o.getName().equals(from)) {
+                o.sendMsg("/w to " + name + ": " + msg);
+            }
+        }
+    }
 }

@@ -2,12 +2,16 @@ import java.sql.SQLException;
 
 public interface AuthService {
     void start();
-    String getNickByLoginPass(String login, String pass);
 
-    boolean createUser (String login, String pass, String nick);
-    boolean deleteUserByNick (String login);
+    boolean createUser(String var1, String var2, String var3);
 
-    boolean findUserByNick (String nick);
+    boolean deleteUserByNick(String var1);
+
+    String getNickByLoginPass(String var1, String var2) throws SQLException, ClassNotFoundException;
+
+    boolean createUser(String var1, String var2);
+
+    boolean findUserByNick(String var1);
 
     void stop();
 }

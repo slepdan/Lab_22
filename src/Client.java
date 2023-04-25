@@ -1,5 +1,5 @@
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -9,146 +9,150 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 
 public class Client extends JFrame {
     private final String SERVER_ADDR = "localhost";
     private final int SERVER_PORT = 1236;
-    private JTextField msgInputField, loginField, passField;
+    private JTextField msgInputField;
+    private JTextField loginField;
+    private JTextField passField;
     private JTextArea chatArea;
     private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
 
-
     public Client() {
         try {
-            openConnection();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.openConnection();
+        } catch (IOException var2) {
+            var2.printStackTrace();
         }
-        prepareGUI();
+
+        this.prepareGUI();
     }
 
     public void openConnection() throws IOException {
-        socket = new Socket(SERVER_ADDR, SERVER_PORT);
-        in = new DataInputStream(socket.getInputStream());
-        out = new DataOutputStream(socket.getOutputStream());
-
-        new Thread(new Runnable() {
-            @Override
-            public void run(){
+        this.socket = new Socket("localhost", 1236);
+        this.in = new DataInputStream(this.socket.getInputStream());
+        this.out = new DataOutputStream(this.socket.getOutputStream());
+        (new Thread(new Runnable() {
+            public void run() {
                 try {
-                    while (true){
-                        String strFromServer = in.readUTF();
-                        if (strFromServer.startsWith("/authok")){
-                            break;
+                    while(true) {
+                        String strFromServer = Client.this.in.readUTF();
+                        if (strFromServer.startsWith("/authok")) {
+                            while(true) {
+                                strFromServer = Client.this.in.readUTF();
+                                if (strFromServer.equalsIgnoreCase("/end")) {
+                                    return;
+                                }
+
+                                Client.this.chatArea.append(strFromServer);
+                                Client.this.chatArea.append("\n");
+                            }
                         }
-                        chatArea.append(strFromServer + "\n");
+
+                        Client.this.chatArea.append(strFromServer + "\n");
                     }
-                    while (true){
-                        String strFromServer = in.readUTF();
-                        if (strFromServer.equalsIgnoreCase("/end")){
-                            break;
-                        }
-                        chatArea.append(strFromServer);
-                        chatArea.append("\n");
-                    }
+                } catch (EOFException var2) {
+                } catch (Exception var3) {
+                    var3.printStackTrace();
                 }
-                catch (EOFException eofException){}
-                catch (Exception e){
-                    e.printStackTrace();
-                }
+
             }
-        }).start();
+        })).start();
     }
+
     public void closeConnection() {
         try {
-            in.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.in.close();
+        } catch (IOException var4) {
+            var4.printStackTrace();
         }
+
         try {
-            out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.out.close();
+        } catch (IOException var3) {
+            var3.printStackTrace();
         }
+
         try {
-            socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.socket.close();
+        } catch (IOException var2) {
+            var2.printStackTrace();
         }
+
     }
 
-
     public void sendMessage() {
-        if (!msgInputField.getText().trim().isEmpty()) {
+        if (!this.msgInputField.getText().trim().isEmpty()) {
             try {
-                out.writeUTF(msgInputField.getText());
-                msgInputField.setText("");
-                msgInputField.grabFocus();
-            } catch (IOException e) {
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Ошибка отправки сообщения");
+                this.out.writeUTF(this.msgInputField.getText());
+                this.msgInputField.setText("");
+                this.msgInputField.grabFocus();
+            } catch (IOException var2) {
+                var2.printStackTrace();
+                JOptionPane.showMessageDialog((Component)null, "Ошибка отправки сообщения");
             }
         }
+
     }
 
     public void prepareGUI() {
-        // Параметры окна
-        setBounds(600, 300, 500, 500);
-        setTitle("Клиент");
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-
-        loginField = new JTextField();
-        passField = new JTextField();
-        // Текстовое поле для вывода сообщений
-        chatArea = new JTextArea();
-        chatArea.setEditable(false);
-        chatArea.setLineWrap(true);
-        add(new JScrollPane(chatArea), BorderLayout.CENTER);
-        // Нижняя панель с полем для ввода сообщений и кнопкой отправки сообщений
+        this.setBounds(600, 300, 500, 500);
+        this.setTitle("Клиент");
+        this.setDefaultCloseOperation(3);
+        this.loginField = new JTextField();
+        this.passField = new JTextField();
+        this.chatArea = new JTextArea();
+        this.chatArea.setEditable(false);
+        this.chatArea.setLineWrap(true);
+        this.add(new JScrollPane(this.chatArea), "Center");
         JPanel bottomPanel = new JPanel(new BorderLayout());
         JButton btnSendMsg = new JButton("Отправить");
-        bottomPanel.add(btnSendMsg, BorderLayout.EAST);
-        msgInputField = new JTextField();
-        add(bottomPanel, BorderLayout.SOUTH);
-        bottomPanel.add(msgInputField, BorderLayout.CENTER);
+        bottomPanel.add(btnSendMsg, "East");
+        this.msgInputField = new JTextField();
+        this.add(bottomPanel, "South");
+        bottomPanel.add(this.msgInputField, "Center");
         btnSendMsg.addActionListener(new ActionListener() {
-            @Override
             public void actionPerformed(ActionEvent e) {
-                sendMessage();
+                Client.this.sendMessage();
             }
         });
-        msgInputField.addActionListener(new ActionListener() {
-            @Override
+        this.msgInputField.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                sendMessage();
+                Client.this.sendMessage();
             }
         });
-        // Настраиваем действие на закрытие окна
-        addWindowListener(new WindowAdapter() {
-            @Override
+        this.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
                 super.windowClosing(e);
+
                 try {
-                    out.writeUTF("/end");
-                    closeConnection();
-                } catch (IOException exc) {
-                    exc.printStackTrace();
+                    Client.this.out.writeUTF("/end");
+                    Client.this.closeConnection();
+                } catch (IOException var3) {
+                    var3.printStackTrace();
                 }
+
             }
         });
-        setVisible(true);
+        this.setVisible(true);
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
-            @Override
             public void run() {
                 new Client();
             }
         });
     }
-
-
 }

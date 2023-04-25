@@ -2,7 +2,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class ClientHandler {
@@ -13,9 +12,8 @@ public class ClientHandler {
     private String name;
 
     public String getName() {
-        return name;
+        return this.name;
     }
-
 
     public ClientHandler(MyServer myServer, Socket socket) {
         try {
@@ -24,144 +22,157 @@ public class ClientHandler {
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
             this.name = "";
-
-            new Thread(() -> {
+            (new Thread(() -> {
                 try {
-                    authentication();
-                    readMessages();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                } catch (ClassNotFoundException e) {
-                    throw new RuntimeException(e);
+                    this.authentication();
+                    this.readMessages();
+                } catch (IOException var7) {
+                    var7.printStackTrace();
+                } catch (SQLException var8) {
+                    throw new RuntimeException(var8);
+                } catch (ClassNotFoundException var9) {
+                    throw new RuntimeException(var9);
                 } finally {
-                    closeConnection();
+                    this.closeConnection();
                 }
-            }).start();
-        } catch (IOException e) {
+
+            })).start();
+        } catch (IOException var4) {
             throw new RuntimeException("Проблемы при создании обработчика клиента");
         }
     }
 
-
     public void authentication() throws IOException, SQLException, ClassNotFoundException {
-        while (true) {
-            String str = in.readUTF();
+        while(true) {
+            String str = this.in.readUTF();
             if (str.startsWith("/auth")) {
-
                 String[] parts = str.split("\\s");
-                String nick = myServer.getAuthService().getNickByLoginPass(parts[1], parts[2]);
+                String nick = this.myServer.getAuthService().getNickByLoginPass(parts[1], parts[2]);
                 if (nick != null) {
-                    if (!myServer.isNickBusy(nick)) {
-                        sendMsg("/authok " + nick);
-                        name = nick;
-                        myServer.broadcastMsg(nick + " зашел в чат");
-                        sendMsg("Авторизация пройдена " + "Hello " + nick + " !");
-                        myServer.subscribe(this);
+                    if (!this.myServer.isNickBusy(nick)) {
+                        this.sendMsg("/authok " + nick);
+                        this.name = nick;
+                        this.myServer.broadcastMsg(nick + " зашел в чат");
+                        this.sendMsg("Авторизация пройдена Hello " + nick + " !");
+                        this.myServer.subscribe(this);
                         return;
-                    } else {
-                        sendMsg("Учетная запись уже используется");
                     }
-                }else {
-                    sendMsg("Неверные логин/пароль");
+
+                    this.sendMsg("Учетная запись уже используется");
+                } else {
+                    this.sendMsg("Неверные логин/пароль");
                 }
             }
         }
     }
+
     private void readMessages() throws IOException {
-        while (true) {
-            String strFromClient = in.readUTF();
-            System.out.println("от " + name + ": " + strFromClient);
-            if (name.equals("admin")) {
-                if (strFromClient.startsWith("/adduser ")) {
-                    String[] arr = strFromClient.split(" ");
-                    String login = arr[1];
-                    String pass = arr[2];
-                    myServer.getAuthService().createUser(login, pass, login);
-                    myServer.broadcastMsgToNick(name, "user " + login + " added", "Server");
-                    continue;
-                }
-                if (strFromClient.startsWith("/deluser ")) {
-                    String[] arr = strFromClient.split(" ");
-                    String login = arr[1];
-                    boolean isInDB = myServer.getAuthService().findUserByNick(login);
-                    boolean isOnline = myServer.isNickBusy(login);
-                    if (isInDB) {
-                        myServer.getAuthService().deleteUserByNick(login);
-                        myServer.broadcastMsgToNick(name, "user " + login + " deleted", "Server");
-                        if (isOnline) {
-                            myServer.kickUser(login);
-                        }
-                    }
-                    continue;
-                }
-            }
-            if (strFromClient.equals("/end")) {
-                closeConnection();
-                continue;
-            }
-            if (strFromClient.startsWith("/changename ")){
-                String newNickname = strFromClient.split("\\s", 2)[1];
-                myServer.broadcastMsgToChangeName(name,newNickname);
-                name = newNickname;
-                continue;
-            }
+        while(true) {
+            String strFromClient = this.in.readUTF();
+            System.out.println("от " + this.name + ": " + strFromClient);
+            String[] arr;
             if (strFromClient.startsWith("/w")) {
-                String[] parts = strFromClient.split("\\s");
-                if (myServer.isNickBusy(parts[1])) {
-                    myServer.broadcastMsgToNick(name, parts[1], parts[2] );
+                arr = strFromClient.split("\\s");
+                if (this.myServer.isNickBusy(arr[1])) {
+                    this.myServer.broadcastMsgToNick(this.name, arr[1], arr[2]);
                 }
-                else myServer.broadcastMsg(name + ": " + strFromClient);
-            }
-            else {
-                myServer.broadcastMsg(name + ": " + strFromClient);
+            } else if (strFromClient.startsWith("/changename ")) {
+                String newNickname = strFromClient.split("\\s", 2)[1];
+                this.myServer.broadcastMsgToChangeName(this.name, newNickname);
+                this.name = newNickname;
+            } else {
+                if (this.name.equals("admin")) {
+                    String login;
+                    if (strFromClient.startsWith("/adduser ")) {
+                        arr = strFromClient.split(" ");
+                        login = arr[1];
+                        String pass = arr[2];
+                        this.myServer.getAuthService().createUser(login, pass, login);
+                        this.myServer.broadcastMsgToNick(this.name, "user " + login + " added", "Server");
+                        continue;
+                    }
+
+                    if (strFromClient.startsWith("/deluser ")) {
+                        arr = strFromClient.split(" ");
+                        login = arr[1];
+                        boolean isInDB = this.myServer.getAuthService().findUserByNick(login);
+                        boolean isOnline = this.myServer.isNickBusy(login);
+                        if (!isInDB) {
+                            continue;
+                        }
+
+                        this.myServer.getAuthService().deleteUserByNick(login);
+                        this.myServer.broadcastMsgToNick(this.name, "user " + login + " deleted", "Server");
+                        if (isOnline) {
+                            this.myServer.kickUser(login);
+                        }
+                        continue;
+                    }
+                }
+
+                if (strFromClient.equals("/end")) {
+                    this.closeConnection();
+                }
+
+                this.myServer.broadcastMsg(this.name + ": " + strFromClient);
             }
         }
     }
+
     public void sendMsg(String msg) {
         try {
-            out.writeUTF(msg);
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.out.writeUTF(msg);
+        } catch (IOException var3) {
+            var3.printStackTrace();
         }
+
     }
+
     public void closeKick() {
-        myServer.broadcastMsg(name + " был кикнут из чата");
-        myServer.unsubscribe(this);
+        this.myServer.broadcastMsg(this.name + " был кикнут из чата");
+        this.myServer.unsubscribe(this);
+
         try {
-            in.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.in.close();
+        } catch (IOException var4) {
+            var4.printStackTrace();
         }
+
         try {
-            out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.out.close();
+        } catch (IOException var3) {
+            var3.printStackTrace();
         }
+
         try {
-            socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.socket.close();
+        } catch (IOException var2) {
+            var2.printStackTrace();
         }
+
     }
+
     public void closeConnection() {
-        myServer.unsubscribe(this);
-        myServer.broadcastMsg(name + " вышел из чата");
+        this.myServer.unsubscribe(this);
+        this.myServer.broadcastMsg(this.name + " вышел из чата");
+
         try {
-            in.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.in.close();
+        } catch (IOException var4) {
+            var4.printStackTrace();
         }
+
         try {
-            in.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.in.close();
+        } catch (IOException var3) {
+            var3.printStackTrace();
         }
+
         try {
-            in.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            this.in.close();
+        } catch (IOException var2) {
+            var2.printStackTrace();
         }
+
     }
 }

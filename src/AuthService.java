@@ -2,15 +2,12 @@ import java.sql.SQLException;
 
 public interface AuthService {
     void start();
-    String getNickByLoginPassDB(String login, String pass) throws SQLException, ClassNotFoundException;
+    String getNickByLoginPass(String login, String pass);
 
-    String setNewUsers(int login, int pass, int nick) throws SQLException, ClassNotFoundException;
+    boolean createUser (String login, String pass, String nick);
+    boolean deleteUserByNick (String login);
 
-     int getBlackListUserById(int _nickId) throws SQLException;
-
-     int getIdByNick(String _nick) throws SQLException;
-
-    boolean addBlackListByNickAndNickName(int _nickId, int _nicknameId) throws SQLException;
+    boolean findUserByNick (String nick);
 
     void stop();
 }

@@ -12,7 +12,7 @@ import java.net.Socket;
 
 public class Client extends JFrame {
     private final String SERVER_ADDR = "localhost";
-    private final int SERVER_PORT = 1234;
+    private final int SERVER_PORT = 1236;
     private JTextField msgInputField, loginField, passField;
     private JTextArea chatArea;
     private Socket socket;
@@ -61,7 +61,6 @@ public class Client extends JFrame {
             }
         }).start();
     }
-
     public void closeConnection() {
         try {
             in.close();

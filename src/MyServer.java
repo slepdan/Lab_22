@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MyServer {
-    private final int PORT = 1234;
+    private final int PORT = 1236;
     private List <ClientHandler> clients;
     private AuthService authService;
 
@@ -67,7 +67,16 @@ public class MyServer {
     }
     public synchronized void broadcastMsgToChangeName(String nameFrom, String nameTo) {
         for (ClientHandler o : clients){
-                o.sendMsg(nameFrom +" cменил ник на: " + nameTo);
+            o.sendMsg(nameFrom +" cменил ник на: " + nameTo);
         }
+    }
+    public synchronized boolean kickUser (String nick) {
+        for (ClientHandler o : clients) {
+            if (o.getName().equals(nick)) {
+                o.closeKick();
+                return true;
+            }
+        }
+        return false;
     }
 }

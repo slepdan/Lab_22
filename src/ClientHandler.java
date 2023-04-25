@@ -2,6 +2,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class ClientHandler {
@@ -15,11 +16,6 @@ public class ClientHandler {
         return name;
     }
 
-    boolean checkBlackList(String _blacklist_nick) throws SQLException {
-        int nickId = myServer.getAuthService().getIdByNick(_blacklist_nick);
-        int blacklistId = myServer.getAuthService().getBlackListUserById(nickId);
-        return blacklistId > 0;
-    }
 
     public ClientHandler(MyServer myServer, Socket socket) {
         try {
@@ -28,6 +24,7 @@ public class ClientHandler {
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
             this.name = "";
+
             new Thread(() -> {
                 try {
                     authentication();
@@ -54,9 +51,10 @@ public class ClientHandler {
             if (str.startsWith("/auth")) {
 
                 String[] parts = str.split("\\s");
-                String nick = myServer.getAuthService().getNickByLoginPassDB(parts[1], parts[2]);
+                String nick = myServer.getAuthService().getNickByLoginPass(parts[1], parts[2]);
                 if (nick != null) {
                     if (!myServer.isNickBusy(nick)) {
+                        sendMsg("/authok " + nick);
                         name = nick;
                         myServer.broadcastMsg(nick + " зашел в чат");
                         sendMsg("Авторизация пройдена " + "Hello " + nick + " !");
@@ -71,39 +69,53 @@ public class ClientHandler {
             }
         }
     }
-    private void readMessages() throws IOException, SQLException, ClassNotFoundException {
+    private void readMessages() throws IOException {
         while (true) {
             String strFromClient = in.readUTF();
             System.out.println("от " + name + ": " + strFromClient);
+            if (name.equals("admin")) {
+                if (strFromClient.startsWith("/adduser ")) {
+                    String[] arr = strFromClient.split(" ");
+                    String login = arr[1];
+                    String pass = arr[2];
+                    myServer.getAuthService().createUser(login, pass, login);
+                    myServer.broadcastMsgToNick(name, "user " + login + " added", "Server");
+                    continue;
+                }
+                if (strFromClient.startsWith("/deluser ")) {
+                    String[] arr = strFromClient.split(" ");
+                    String login = arr[1];
+                    boolean isInDB = myServer.getAuthService().findUserByNick(login);
+                    boolean isOnline = myServer.isNickBusy(login);
+                    if (isInDB) {
+                        myServer.getAuthService().deleteUserByNick(login);
+                        myServer.broadcastMsgToNick(name, "user " + login + " deleted", "Server");
+                        if (isOnline) {
+                            myServer.kickUser(login);
+                        }
+                    }
+                    continue;
+                }
+            }
             if (strFromClient.equals("/end")) {
                 closeConnection();
-            }
-            if (strFromClient.startsWith("/adduser ")) {
-                myServer.getAuthService().setNewUsers(1,2,3);
-            }
-            if (strFromClient.startsWith("/blacklist ")) {
-                String[] tokens = strFromClient.split(" ");
-                int nickId = myServer.getAuthService().getIdByNick(name);
-                int nicknameId = myServer.getAuthService().getIdByNick(tokens[1]);
-                myServer.getAuthService().addBlackListByNickAndNickName(nickId, nicknameId);
-                sendMsg("Вы добавили пользователя " + tokens[1] + " в черный список");
+                continue;
             }
             if (strFromClient.startsWith("/changename ")){
                 String newNickname = strFromClient.split("\\s", 2)[1];
                 myServer.broadcastMsgToChangeName(name,newNickname);
                 name = newNickname;
-            }
-            else {
-                myServer.broadcastMsg(name + ": " + strFromClient);
+                continue;
             }
             if (strFromClient.startsWith("/w")) {
                 String[] parts = strFromClient.split("\\s");
                 if (myServer.isNickBusy(parts[1])) {
                     myServer.broadcastMsgToNick(name, parts[1], parts[2] );
                 }
-                else {
-                    myServer.broadcastMsg(name + ": " + strFromClient);
-                }
+                else myServer.broadcastMsg(name + ": " + strFromClient);
+            }
+            else {
+                myServer.broadcastMsg(name + ": " + strFromClient);
             }
         }
     }
@@ -114,7 +126,25 @@ public class ClientHandler {
             e.printStackTrace();
         }
     }
-
+    public void closeKick() {
+        myServer.broadcastMsg(name + " был кикнут из чата");
+        myServer.unsubscribe(this);
+        try {
+            in.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     public void closeConnection() {
         myServer.unsubscribe(this);
         myServer.broadcastMsg(name + " вышел из чата");

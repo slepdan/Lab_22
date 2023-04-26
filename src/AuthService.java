@@ -1,4 +1,5 @@
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public interface AuthService {
     void start();
@@ -9,9 +10,9 @@ public interface AuthService {
 
     String getNickByLoginPass(String var1, String var2) throws SQLException, ClassNotFoundException;
 
-    boolean createUser(String var1, String var2);
-
     boolean findUserByNick(String var1);
 
     void stop();
+
+    Statement getStmt();
 }

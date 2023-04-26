@@ -21,7 +21,7 @@ public class BaseAuthService implements AuthService {
         }
 
         try {
-            connection = DriverManager.getConnection("jdbc:sqlite:Lab_21\\Lab_21.db");
+            connection = DriverManager.getConnection(connectionUrl);
             stmt = connection.createStatement();
         } catch (SQLException var2) {
             var2.printStackTrace();
@@ -34,6 +34,11 @@ public class BaseAuthService implements AuthService {
         System.out.println("Сервис аутентификации остановлен");
     }
 
+    @Override
+    public Statement getStmt() {
+        return null;
+    }
+    @Override
     public synchronized boolean createUser(String login, String pass, String nick) {
         try {
             String query = "INSERT into users (login, pass, nick) VALUES (?,?,?)";
@@ -48,7 +53,6 @@ public class BaseAuthService implements AuthService {
             return false;
         }
     }
-
     public synchronized boolean deleteUserByNick(String login) {
         try {
             String query = "DELETE from users where nick=?";

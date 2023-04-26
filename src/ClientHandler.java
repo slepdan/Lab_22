@@ -2,7 +2,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class ClientHandler {
     private MyServer myServer;
@@ -14,7 +16,17 @@ public class ClientHandler {
     public String getName() {
         return this.name;
     }
-
+    private void setName(String nick) throws SQLException {
+        String query = "update users set nick=? where nick='" + this.name + "'";
+        PreparedStatement pr = BaseAuthService.connection.prepareStatement(query);
+        pr.setString(1, nick);
+        try {
+            pr.executeUpdate();
+            this.name = nick;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
     public ClientHandler(MyServer myServer, Socket socket) {
         try {
             this.myServer = myServer;
@@ -66,7 +78,7 @@ public class ClientHandler {
         }
     }
 
-    private void readMessages() throws IOException {
+    private void readMessages() throws IOException, SQLException {
         while(true) {
             String strFromClient = this.in.readUTF();
             System.out.println("от " + this.name + ": " + strFromClient);
@@ -76,12 +88,14 @@ public class ClientHandler {
                 if (this.myServer.isNickBusy(arr[1])) {
                     this.myServer.broadcastMsgToNick(this.name, arr[1], arr[2]);
                 }
-            } else if (strFromClient.startsWith("/changename ")) {
-                String newNickname = strFromClient.split("\\s", 2)[1];
-                this.myServer.broadcastMsgToChangeName(this.name, newNickname);
-                this.name = newNickname;
-            } else {
-                if (this.name.equals("admin")) {
+                continue;
+            } if (strFromClient.startsWith("/changename ")) {
+                arr = strFromClient.split(" ");
+                String newName = arr[1];
+                myServer.broadcastMsg(name + " cменил ник на: " + newName);
+                setName(arr[1]);
+                continue;
+            } if (this.name.equals("admin")) {
                     String login;
                     if (strFromClient.startsWith("/adduser ")) {
                         arr = strFromClient.split(" ");
@@ -117,7 +131,6 @@ public class ClientHandler {
                 this.myServer.broadcastMsg(this.name + ": " + strFromClient);
             }
         }
-    }
 
     public void sendMsg(String msg) {
         try {
